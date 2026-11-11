@@ -50,14 +50,17 @@ def cmd_analyze(args) -> int:
         return 1
 
     interview = pipeline.load_interview(path)
-    polish = _polish_fn(args.llm)
-    result = pipeline.analyze(interview, mode="llm-assisted" if polish else "rule", polish=polish)
+    polish = _polish_fn(args.llm) if args.llm else None
+    mode = args.mode
+    if args.llm and polish:
+        mode = "hybrid" if mode == "rule" else mode
+    result = pipeline.analyze(interview, mode=mode, polish=polish, use_cache=not args.no_cache)
 
     if args.json:
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
         return 0
 
-    print(f"\n=== {result.interview_title} · {result.interview_id} ===")
+    print(f"\n=== {result.interview_title} · {result.interview_id} · {result.mode} ===")
     print(f"[抽取] {result.stats['utterances']} 轮对话 → {len(result.pain_points)} 个痛点簇 → {len(result.requirements)} 条需求\n")
 
     print("痛点簇：")
@@ -102,6 +105,13 @@ def cmd_eval(args) -> int:
     return run_eval(verbose=not args.quiet)
 
 
+def cmd_ab(args) -> int:
+    from .ab import run_ab
+
+    modes = [m.strip() for m in args.modes.split(",")] if args.modes else None
+    return run_ab(modes=modes, use_cache=not args.no_cache)
+
+
 def cmd_web(args) -> int:
     from .web import serve
 
@@ -119,8 +129,15 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("id", help="访谈 ID 或 json 路径")
     a.add_argument("--json", action="store_true", help="输出完整 JSON")
     a.add_argument("--out", help="写出 PRD 与 JSON 的目录")
+    a.add_argument("--mode", choices=["rule", "llm", "hybrid"], default="rule", help="抽取方式")
+    a.add_argument("--no-cache", action="store_true", help="忽略 LLM 结果缓存，强制重新调用")
     a.add_argument("--llm", action="store_true", help="用大模型润色需求陈述（可选，失败自动降级）")
     a.set_defaults(func=cmd_analyze)
+
+    ab = sub.add_parser("ab", help="跑规则 vs LLM 的 A/B 对照实验")
+    ab.add_argument("--modes", help="逗号分隔：rule,llm,hybrid（默认全跑）")
+    ab.add_argument("--no-cache", action="store_true")
+    ab.set_defaults(func=cmd_ab)
 
     d = sub.add_parser("demo", help="全量分析并写出 output/")
     d.set_defaults(func=cmd_demo)

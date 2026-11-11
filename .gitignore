@@ -7,3 +7,4 @@ output/
 .env
 .pytest_cache/
 .DS_Store
+data/llm_cache/

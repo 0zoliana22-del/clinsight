@@ -35,6 +35,10 @@ jobs:
       - name: Evaluation (fails if the engine crashes on any gold sample)
         run: python run.py eval
 
+      # LLM 模式需要 API key，CI 里不跑；这里只验证对照装置的规则分支不会崩
+      - name: A/B harness (rule baseline only)
+        run: python run.py ab --modes rule
+
       - name: Upload generated PRDs
         uses: actions/upload-artifact@v4
         with:

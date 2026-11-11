@@ -21,16 +21,15 @@ def _corpus(req) -> str:
     return " ".join([req.scene, req.statement] + [e["quote"] for e in req.evidence])
 
 
-def evaluate_one(gold: dict) -> dict:
-    iv = pipeline.load_interview(pipeline.INTERVIEW_DIR / f"{gold['interview_id']}.json")
-    res = pipeline.analyze(iv)
-    corpus = {r.id: _corpus(r) for r in res.requirements}
+def score(gold: dict, requirements: list, flags: set, stated_status: str = "") -> dict:
+    """把任意来源的需求列表对金标打分。A/B 实验复用同一套口径，避免"各算各的"。"""
+    corpus = {r.id: _corpus(r) for r in requirements}
 
     covered = 0
     prio_hit = 0
     missed: list[str] = []
     for theme in gold["themes"]:
-        matched = [r for r in res.requirements if any(m in corpus[r.id] for m in theme["match_any"])]
+        matched = [r for r in requirements if any(m in corpus[r.id] for m in theme["match_any"])]
         if not matched:
             missed.append(theme["name"])
             continue
@@ -41,26 +40,32 @@ def evaluate_one(gold: dict) -> dict:
 
     hit_reqs = [
         r
-        for r in res.requirements
+        for r in requirements
         if any(any(m in corpus[r.id] for m in t["match_any"]) for t in gold["themes"])
     ]
-
     expected = set(gold.get("expected_flags", []))
-    detected = set(res.compliance["flags"])
+    detected = set(flags)
 
     return {
-        "id": gold["interview_id"],
-        "split": gold.get("split", "dev"),
         "themes": len(gold["themes"]),
-        "reqs": len(res.requirements),
+        "reqs": len(requirements),
         "covered": covered,
         "prio_hit": prio_hit,
         "req_hit": len(hit_reqs),
         "flag_total": len(expected),
         "flag_hit": len(expected & detected),
         "missed": missed,
-        "stated_status": str(res.priority_check.get("status", "")),
+        "stated_status": stated_status,
     }
+
+
+def evaluate_one(gold: dict) -> dict:
+    iv = pipeline.load_interview(pipeline.INTERVIEW_DIR / f"{gold['interview_id']}.json")
+    res = pipeline.analyze(iv)
+    row = score(gold, res.requirements, set(res.compliance["flags"]), str(res.priority_check.get("status", "")))
+    row["id"] = gold["interview_id"]
+    row["split"] = gold.get("split", "dev")
+    return row
 
 
 def _ratio(a: int, b: int) -> float:

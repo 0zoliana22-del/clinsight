@@ -1,23 +1,98 @@
-"""可选的 LLM 适配层（默认关闭，零依赖时自动降级）。
+"""LLM 适配层：OpenAI 兼容接口 + 严格失败降级。
 
-一个重要取舍：**模型不参与抽取、排序和合规判断**，只参与"把话说顺"。
-原因：
-- 排序要能被医生当面质疑并当场复算，模型给不出稳定的中间量；
-- 合规判断要可审计，prompt 的随机性不能进入责任链；
-- 抽取环节换成模型后，必须先在金标集上打赢规则基线，否则不值得引入成本和延迟。
-
-所以 v0.1 的定位是：确定性内核 + 可选的语言润色。这也意味着断网、无 key、
-超预算时产品依然完整可用——这在医院内网环境里不是加分项，是准入项。
+三条原则：
+1. **失败一律降级**，不抛异常打断整条流水线——医院内网断网是常态；
+2. **确定性优先**：temperature=0，能复现；
+3. **模型只做语言理解，不做责任判断**：抽取可以交给模型，排序和合规不行。
 """
 
 from __future__ import annotations
 
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 DEFAULT_BASE = "https://api.deepseek.com/v1"
 DEFAULT_MODEL = "deepseek-chat"
+
+
+class LLMError(RuntimeError):
+    """模型调用失败。调用方必须捕获并降级。"""
+
+
+def config() -> dict[str, str]:
+    return {
+        "key": os.environ.get("CLINSIGHT_LLM_KEY") or os.environ.get("OPENAI_API_KEY", ""),
+        "base": os.environ.get("CLINSIGHT_LLM_BASE", DEFAULT_BASE).rstrip("/"),
+        "model": os.environ.get("CLINSIGHT_LLM_MODEL", DEFAULT_MODEL),
+    }
+
+
+def available() -> bool:
+    return bool(config()["key"])
+
+
+def chat(
+    messages: list[dict[str, str]],
+    *,
+    temperature: float = 0.0,
+    max_tokens: int = 2048,
+    timeout: float = 60.0,
+    retries: int = 2,
+) -> str:
+    cfg = config()
+    if not cfg["key"]:
+        raise LLMError("未配置 CLINSIGHT_LLM_KEY")
+
+    payload = {
+        "model": cfg["model"],
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "response_format": {"type": "json_object"},
+    }
+    last: str = ""
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(
+            f"{cfg['base']}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {cfg['key']}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            return body["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as exc:
+            last = f"HTTP {exc.code}: {exc.read().decode('utf-8', 'ignore')[:300]}"
+        except Exception as exc:  # 网络 / 超时 / 结构异常
+            last = f"{type(exc).__name__}: {exc}"
+        if attempt < retries:
+            time.sleep(1.5 * (attempt + 1))
+    raise LLMError(last or "unknown error")
+
+
+def chat_json(messages: list[dict[str, str]], **kwargs) -> dict:
+    """要求模型返回 JSON 对象；解析失败视为调用失败，交给上层降级。"""
+    raw = chat(messages, **kwargs)
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:]
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise LLMError(f"返回不是合法 JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise LLMError("返回的 JSON 顶层不是对象")
+    return parsed
+
 
 SYSTEM_PROMPT = (
     "你是医疗 AI 产品经理。把给定的需求陈述改写得像人话：保留全部事实、数字与限定条件，"
@@ -25,43 +100,20 @@ SYSTEM_PROMPT = (
 )
 
 
-def available() -> bool:
-    return bool(os.environ.get("CLINSIGHT_LLM_KEY") or os.environ.get("OPENAI_API_KEY"))
-
-
-def _config() -> tuple[str, str, str]:
-    key = os.environ.get("CLINSIGHT_LLM_KEY") or os.environ.get("OPENAI_API_KEY", "")
-    base = os.environ.get("CLINSIGHT_LLM_BASE", DEFAULT_BASE).rstrip("/")
-    model = os.environ.get("CLINSIGHT_LLM_MODEL", DEFAULT_MODEL)
-    return key, base, model
-
-
 def rewrite(text: str, timeout: float = 12.0) -> str | None:
-    """失败一律返回 None，调用方保持原文——不因为润色失败而丢结果。"""
+    """失败返回 None，调用方保持原文——不因为润色失败而丢结果。"""
     if not available():
         return None
-    key, base, model = _config()
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": text},
-        ],
-        "temperature": 0.2,
-        "max_tokens": 256,
-    }
-    req = urllib.request.Request(
-        f"{base}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-        out = body["choices"][0]["message"]["content"].strip()
-        if not out or len(out) > 400:
-            return None
-        return out
-    except Exception:  # 网络 / 配额 / 格式问题都走降级
+        out = chat(
+            [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            max_tokens=256,
+            timeout=timeout,
+            retries=0,
+        ).strip()
+    except LLMError:
         return None
+    return out if out and len(out) <= 400 else None

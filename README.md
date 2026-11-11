@@ -105,6 +105,24 @@ ClinSight 就是这道转换。它的输出不是"洞察"，是可回放、可�
 
 > 这四条就是 v0.2 换 LLM 抽取的直接理由。**没有这组数字，换模型是拍脑袋；有了这组数字，换完能证明好多少。**
 
+### v0.2 对照实验：装置已就绪，表还空着
+
+`extract_llm.py` + `ab.py` 已经写好，做的是**单变量对照**：只换抽取器，可行性、合规、排序、金标口径全部不变，这样涨的每一分都能归因。
+
+```bash
+export CLINSIGHT_LLM_KEY=sk-xxx     # 任意 OpenAI 兼容端点
+python run.py ab                    # A 规则 / B 纯 LLM / C 并集，一次跑完
+```
+
+两条纪律写进了代码，不是写在文档里：
+
+- **降级样本不进分母**：某份访谈没跑通（超时、没 key、输出不合格），它产出的其实是规则版结果。混进 LLM 的平均分，就会得到一张"看起来一模一样"的假表。
+- **没跑通就显示"未运行"**：缺 key 时报告里写"未运行"并返回非零码，绝不生成数字。
+
+> **为什么我没有直接贴 A/B 数字？**
+> 金标是我自己标的。再由我去跑一遍抽取，等于带着答案考试——分数必然虚高，那是假证据，不是实验。
+> 这张表必须由一个**不知道答案的模型**来填。装置在这里，命令在上面，任何人（包括面试官）都能自己验。
+
 ---
 
 ## 5. 已知局限（写在明面上）
@@ -125,8 +143,9 @@ python run.py list                 # 看样本
 python run.py analyze INT-002      # 单份分析，终端直接出结论
 python run.py demo                 # 全量跑，写出 output/
 python run.py eval                 # 金标评测
+python run.py ab                   # v0.2 对照实验（需要 LLM key，缺 key 会明确报"未运行"）
 python run.py web --no-browser     # 演示界面 http://127.0.0.1:8765
-python -m unittest discover -s tests -v   # 21 个测试
+python -m unittest discover -s tests -v   # 32 个测试
 ```
 
 **零第三方依赖**，Python ≥ 3.10 即可。不是懒得装包，而是医院内网的机器往往装不了包——一个需要 `pip install` 半小时才能演示的工具，本身就过不了"可交付"这关。
@@ -153,7 +172,9 @@ clinsight/
 ├── src/clinsight/
 │   ├── models.py             # Interview → PainPoint → Requirement → Analysis
 │   ├── taxonomy.py           # 知识层：词表 / 场景 / 科室方案卡 / 合规规则（PM 可直接改）
-│   ├── extract.py            # ① ② 抽取与转译
+│   ├── extract.py            # ① ② 抽取与转译（规则版）
+│   ├── extract_llm.py        # v0.2：LLM 抽取 + schema 校验 + 缓存 + 降级
+│   ├── ab.py                 # v0.2：规则 / LLM / 并集 三组对照
 │   ├── feasibility.py        # ③ 能力边界
 │   ├── compliance.py         # ④ 合规（含否定句识别）
 │   ├── prioritize.py         # ⑤ ⑥ 排序与一致性校验
@@ -165,7 +186,7 @@ clinsight/
 ├── data/interviews/          # 6 份模拟访谈
 ├── data/gold/                # 金标标注
 ├── examples/                 # 生成结果快照（不用跑代码也能看）
-├── tests/                    # 21 个单元测试
+├── tests/                    # 32 个单元测试
 ├── web/index.html            # 单文件界面，无构建
 └── docs/                     # 方法论 / PRD / 合规 / 评测 / 路线图 / 面试讲法
 ```

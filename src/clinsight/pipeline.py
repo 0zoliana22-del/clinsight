@@ -33,11 +33,39 @@ def list_interviews(directory: str | Path | None = None) -> list[Interview]:
     return items
 
 
-def analyze(interview: Interview, mode: str = "rule", polish=None) -> Analysis:
+def _extract(interview: Interview, mode: str, use_cache: bool) -> tuple[list, list, dict]:
+    """三种抽取策略。任何 LLM 异常都必须降级到规则版，不能打断整条流水线。"""
+    if mode == "rule":
+        points = extract.extract_pain_points(interview)
+        return points, extract.build_requirements(points), {}
+
+    from . import extract_llm
+
+    meta: dict = {}
+    try:
+        lp, lr, meta = extract_llm.run(interview, use_cache=use_cache)
+    except Exception as exc:  # 无 key / 断网 / 输出不合格，一律降级
+        lp, lr = [], []
+        meta = {"llm_error": f"{type(exc).__name__}: {exc}"}
+
+    if mode == "llm":
+        if not lp:
+            points = extract.extract_pain_points(interview)
+            return points, extract.build_requirements(points), {**meta, "fallback": True}
+        return lp, lr, meta
+
+    # hybrid：规则保证覆盖，模型保证表达；同场景同类别同证据轮次的合并
+    rp = extract.extract_pain_points(interview)
+    rr = extract.build_requirements(rp)
+    if not lr:
+        return rp, rr, {**meta, "fallback": True}
+    return rp + lp, extract_llm.merge(rr, lr), meta
+
+
+def analyze(interview: Interview, mode: str = "rule", polish=None, use_cache: bool = True) -> Analysis:
     t0 = time.perf_counter()
 
-    points = extract.extract_pain_points(interview)
-    reqs = extract.build_requirements(points)
+    points, reqs, meta = _extract(interview, mode, use_cache)
 
     feas = feasibility.assess(reqs)
     for r in reqs:
@@ -65,6 +93,8 @@ def analyze(interview: Interview, mode: str = "rule", polish=None) -> Analysis:
         "elapsed_ms": elapsed,
         "mode": mode,
     }
+    if meta:
+        stats["llm"] = {k: v for k, v in meta.items() if k != "rejections"}
     return Analysis(
         interview_id=interview.id,
         interview_title=interview.title,
@@ -79,8 +109,8 @@ def analyze(interview: Interview, mode: str = "rule", polish=None) -> Analysis:
     )
 
 
-def analyze_all(mode: str = "rule") -> list[Analysis]:
-    return [analyze(iv, mode=mode) for iv in list_interviews()]
+def analyze_all(mode: str = "rule", use_cache: bool = True) -> list[Analysis]:
+    return [analyze(iv, mode=mode, use_cache=use_cache) for iv in list_interviews()]
 
 
 def write_outputs(results: list[Analysis], output_dir: str | Path | None = None) -> list[Path]:
