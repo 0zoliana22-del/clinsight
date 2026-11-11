@@ -1,5 +1,10 @@
 # ClinSight · 临床需求洞察 Agent
 
+[![CI](https://github.com/0zoliana22-del/clinsight/actions/workflows/ci.yml/badge.svg)](https://github.com/0zoliana22-del/clinsight/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+
 > 把医生访谈里的口语化抱怨，变成**可验证、可排序、可交付**的需求条目，并同步给出 AI 能力边界与合规红线。
 
 一个 AI 产品经理的作品集项目：不是"我做过需求分析"，而是**"这是我做的需求分析工具，你现在就可以跑一遍"**。
