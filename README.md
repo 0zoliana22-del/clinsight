@@ -125,6 +125,8 @@ python -m unittest discover -s tests -v   # 21 个测试
 
 **零第三方依赖**，Python ≥ 3.10 即可。不是懒得装包，而是医院内网的机器往往装不了包——一个需要 `pip install` 半小时才能演示的工具，本身就过不了"可交付"这关。
 
+不想跑代码？直接看快照：[示例 PRD（心内科）](examples/PRD-INT-001.md)、[示例 PRD（内分泌科，高风险场景）](examples/PRD-INT-003.md)、[评测报告](examples/eval_report.md)。
+
 **可选 LLM 润色**（不接也能跑，失败自动降级）：
 
 ```bash
@@ -156,6 +158,7 @@ clinsight/
 │   └── web.py                # 标准库 HTTP 服务
 ├── data/interviews/          # 6 份模拟访谈
 ├── data/gold/                # 金标标注
+├── examples/                 # 生成结果快照（不用跑代码也能看）
 ├── tests/                    # 21 个单元测试
 ├── web/index.html            # 单文件界面，无构建
 └── docs/                     # 方法论 / PRD / 合规 / 评测 / 路线图 / 面试讲法
