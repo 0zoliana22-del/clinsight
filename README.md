@@ -119,7 +119,8 @@ ClinSight 就是这道转换。它的输出不是"洞察"，是可回放、可�
 ## 6. 快速开始
 
 ```bash
-git clone <repo> && cd clinsight
+git clone https://github.com/0zoliana22-del/clinsight.git
+cd clinsight
 python run.py list                 # 看样本
 python run.py analyze INT-002      # 单份分析，终端直接出结论
 python run.py demo                 # 全量跑，写出 output/
