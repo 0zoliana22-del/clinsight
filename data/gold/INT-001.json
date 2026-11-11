@@ -1,0 +1,12 @@
+{
+  "interview_id": "INT-001",
+  "split": "dev",
+  "themes": [
+    { "name": "门诊资料一屏汇总", "match_any": ["一屏", "趋势"], "priority": "Must" },
+    { "name": "门诊病历草稿生成", "match_any": ["病历草稿", "草稿"], "priority": "Should" },
+    { "name": "患者医嘱复述材料", "match_any": ["复述"], "priority": "Should" },
+    { "name": "随访失访管理", "match_any": ["失访"], "priority": "Should" },
+    { "name": "门诊流程提效", "match_any": ["工作流", "拖到"], "priority": "Should" }
+  ],
+  "expected_flags": []
+}

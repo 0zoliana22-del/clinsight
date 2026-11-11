@@ -1,0 +1,12 @@
+{
+  "interview_id": "INT-002",
+  "split": "dev",
+  "themes": [
+    { "name": "交接班结构化清单", "match_any": ["交接清单", "结构化交班"], "priority": "Must" },
+    { "name": "交接遗漏提醒", "match_any": ["未交接", "遗漏"], "priority": "Must" },
+    { "name": "出院宣教材料", "match_any": ["宣教"], "priority": "Should" },
+    { "name": "医嘱实物核对", "match_any": ["实物"], "priority": "Should" },
+    { "name": "排班调班冲突", "match_any": ["排班"], "priority": "Could" }
+  ],
+  "expected_flags": []
+}

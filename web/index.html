@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClinSight · 临床需求洞察 Agent</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --ink:#1b2430; --muted:#6b7684; --line:#e4e7ec;
+    --accent:#1a6fe0; --accent-soft:#e8f0fd;
+    --must:#c62828; --should:#a8630a; --could:#4a5a6a; --wont:#8b98a5;
+    --ok:#1e8e5a; --warn:#b26a00; --bad:#c62828;
+    --side:#141b26; --side-ink:#c9d2dd;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    display:grid; grid-template-columns:272px 1fr;
+  }
+  /* ---------- sidebar ---------- */
+  aside{
+    background:var(--side); color:var(--side-ink); padding:22px 16px;
+    display:flex; flex-direction:column; gap:18px; height:100vh; position:sticky; top:0;
+  }
+  .brand{display:flex; gap:12px; align-items:center; padding:0 6px}
+  .logo{
+    width:38px;height:38px;border-radius:11px;flex:none;
+    background:linear-gradient(135deg,#2f8bff,#0d5cc4);
+    display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;letter-spacing:.5px;
+  }
+  .brand h1{font-size:16px;margin:0;color:#fff;letter-spacing:.3px}
+  .brand p{margin:1px 0 0;font-size:11.5px;color:#7f8b9b;letter-spacing:.2px}
+  .side-label{font-size:11px;letter-spacing:1.4px;color:#5f6b7b;padding:0 6px;text-transform:uppercase}
+  nav{display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+  .item{
+    text-align:left;background:transparent;border:0;color:var(--side-ink);
+    padding:10px 12px;border-radius:10px;cursor:pointer;font:inherit;line-height:1.4;
+  }
+  .item:hover{background:#1e2836}
+  .item.active{background:#1f2c3f;box-shadow:inset 2px 0 0 var(--accent)}
+  .item b{display:block;font-size:13px;font-weight:600;color:#e8edf3}
+  .item span{font-size:11.5px;color:#788597}
+  .side-foot{margin-top:auto;font-size:11px;color:#5b6777;line-height:1.8;padding:0 6px;border-top:1px solid #1f2836;padding-top:14px}
+
+  /* ---------- main ---------- */
+  main{padding:26px 34px 60px;max-width:1180px;width:100%}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+  .head h2{margin:0;font-size:21px;letter-spacing:.2px}
+  .head .sub{color:var(--muted);font-size:12.5px;margin-top:4px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{
+    background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:4px 11px;font-size:12px;color:var(--muted);
+  }
+  .chip b{color:var(--ink);font-weight:600}
+  .actions{display:flex;gap:8px}
+  .btn{
+    border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 13px;
+    font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink);
+  }
+  .btn:hover{border-color:#c9d2dd}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:20px 0 20px}
+  .tab{
+    background:none;border:0;padding:9px 2px 12px;font:inherit;font-size:13.5px;color:var(--muted);
+    cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .k{font-size:11px;letter-spacing:.8px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+  .v{font-size:14px;line-height:1.6}
+  .big{font-size:15.5px;font-weight:600}
+
+  .badge{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11.5px;font-weight:600;letter-spacing:.3px}
+  .b-must{background:#fdecec;color:var(--must)}
+  .b-should{background:#fdf3e3;color:var(--should)}
+  .b-could{background:#eef1f4;color:var(--could)}
+  .b-wont{background:#f2f4f6;color:var(--wont)}
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
+  .s-ok{color:var(--ok)} .s-warn{color:var(--warn)} .s-bad{color:var(--bad)}
+
+  .req{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px;background:var(--card)}
+  .req-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .req-top .id{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted)}
+  .score{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+  .bar{width:96px;height:5px;border-radius:3px;background:#eceff3;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+  .stmt{margin:10px 0 12px;font-size:14.5px;line-height:1.7}
+  .quote{
+    border-left:3px solid #d7dee8;padding:2px 0 2px 12px;color:#46505d;font-size:13px;margin:6px 0;
+  }
+  .quote em{color:var(--muted);font-style:normal;font-size:12px;margin-right:6px}
+  details{margin-top:10px}
+  summary{cursor:pointer;font-size:12.5px;color:var(--accent);outline:none}
+  .rat{list-style:none;padding:8px 0 0;margin:0}
+  .rat li{font-size:12.5px;color:#44505e;padding:3px 0;font-variant-numeric:tabular-nums}
+  .accept{list-style:none;padding:0;margin:8px 0 0}
+  .accept li{font-size:12.5px;color:#44505e;padding:3px 0 3px 22px;position:relative}
+  .accept li:before{content:"☐";position:absolute;left:4px;color:#98a4b3}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:.4px;background:#fafbfc}
+  tr:last-child td{border-bottom:0}
+
+  .banner{border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:13px}
+  .banner.high{background:#fdecec;border:1px solid #f6cfcf}
+  .banner.mid{background:#fdf6e8;border:1px solid #f0e0c0}
+  .banner.low{background:#eaf7f0;border:1px solid #cfe9db}
+
+  #prd{font-size:13.5px;line-height:1.8}
+  #prd h1{font-size:20px;margin:0 0 12px}
+  #prd h2{font-size:16px;margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  #prd h3{font-size:14px;margin:18px 0 8px}
+  #prd h4{font-size:13px;margin:16px 0 6px;color:#33404f}
+  #prd blockquote{margin:8px 0;padding:8px 14px;border-left:3px solid #cfd8e3;background:#fafbfc;color:#4b5664}
+  #prd code{background:#f0f3f7;padding:1px 5px;border-radius:4px;font-size:12px}
+  #prd ul{padding-left:20px}
+  #prd table{margin:10px 0}
+  .empty{color:var(--muted);padding:40px 0;text-align:center}
+  .loading{color:var(--muted);padding:40px 0;text-align:center}
+  .err{color:var(--bad);padding:20px;background:#fdecec;border-radius:10px}
+  @media (max-width:900px){
+    body{grid-template-columns:1fr}
+    aside{height:auto;position:static}
+    main{padding:18px}
+    .grid2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <div class="logo">CS</div>
+    <div><h1>ClinSight</h1><p>临床需求洞察 Agent</p></div>
+  </div>
+  <div class="side-label">访谈样本</div>
+  <nav id="list"><div class="loading">加载中…</div></nav>
+  <div class="side-foot">
+    零依赖 · 离线可跑<br>
+    规则内核 v0.1 · 金标评测见 README
+  </div>
+</aside>
+
+<main>
+  <div class="head">
+    <div>
+      <h2 id="title">选择一份访谈</h2>
+      <div class="sub" id="sub">把一线抱怨，变成可验证、可排序、可交付的需求</div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="actions" id="actions" style="display:none">
+      <button class="btn" id="btn-json">看 JSON</button>
+      <button class="btn primary" id="btn-prd">下载 PRD</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs" style="display:none">
+    <button class="tab on" data-tab="overview">概览</button>
+    <button class="tab" data-tab="pains">痛点</button>
+    <button class="tab" data-tab="reqs">需求</button>
+    <button class="tab" data-tab="comp">合规</button>
+    <button class="tab" data-tab="prd">PRD</button>
+  </div>
+
+  <div id="view"><div class="empty">← 从左侧选一份访谈，30 毫秒出结果</div></div>
+</main>
+
+<script>
+const CAT = {
+  efficiency:"效率损耗", toil:"重复劳动", information:"信息不可得",
+  safety:"安全与差错", communication:"沟通与依从", data:"数据与统计"
+};
+const MOS_LABEL = {Must:"必须有", Should:"应该有", Could:"可以有", "Won't":"本期不做"};
+const MOS_CLASS = {Must:"must", Should:"should", Could:"could", "Won't":"wont"};
+const cls = m => MOS_CLASS[m] || "wont";
+const FLAG = {
+  clinical_advice:"输出临床建议", phi:"涉及患者标识", patient_facing:"面向患者",
+  decision_support:"辅助诊疗决策", export:"数据导出"
+};
+let DATA = null, TAB = "overview";
+
+const esc = s => String(s == null ? "" : s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const el = id => document.getElementById(id);
+
+async function boot(){
+  const list = await fetch("/api/interviews").then(r => r.json());
+  el("list").innerHTML = list.map(iv => `
+    <button class="item" data-id="${iv.id}">
+      <b>${esc(iv.department)} · ${esc(iv.role)}</b>
+      <span>${esc(iv.id)} · ${iv.turns} 轮 · ${esc(iv.date)}</span>
+    </button>`).join("");
+  el("list").querySelectorAll(".item").forEach(b => b.onclick = () => pick(b.dataset.id));
+  pick(list[0] && list[0].id);
+}
+
+async function pick(id){
+  document.querySelectorAll(".item").forEach(b => b.classList.toggle("active", b.dataset.id === id));
+  el("view").innerHTML = `<div class="loading">分析中…</div>`;
+  try{
+    DATA = await fetch("/api/analyze?id=" + encodeURIComponent(id)).then(r => r.json());
+    if (DATA.error) throw new Error(DATA.error);
+    el("tabs").style.display = "flex";
+    el("actions").style.display = "flex";
+    renderHead();
+    render();
+  }catch(e){
+    el("view").innerHTML = `<div class="err">出错了：${esc(e.message)}</div>`;
+  }
+}
+
+function renderHead(){
+  el("title").textContent = DATA.interview_title;
+  el("sub").textContent = `访谈 ${DATA.interview_id} · 模式 ${DATA.mode}`;
+  const s = DATA.stats;
+  el("chips").innerHTML = [
+    ["对话轮次", s.utterances], ["痛点簇", s.pain_points], ["需求", s.requirements],
+    ["Must", s.must], ["耗时", s.elapsed_ms + " ms"]
+  ].map(([k,v]) => `<span class="chip">${k} <b>${v}</b></span>`).join("");
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  TAB = t.dataset.tab;
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  render();
+});
+
+el("btn-prd").onclick = () => {
+  const blob = new Blob([DATA.prd_markdown], {type:"text/markdown;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `PRD-${DATA.interview_id}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+el("btn-json").onclick = () => {
+  const w = window.open("", "_blank");
+  w.document.write("<pre style='font:12px/1.6 Menlo,Consolas,monospace;padding:20px;white-space:pre-wrap'>"
+    + esc(JSON.stringify(DATA, null, 2)) + "</pre>");
+};
+
+function render(){
+  if(!DATA) return;
+  const v = el("view");
+  if (TAB === "overview") v.innerHTML = overview();
+  else if (TAB === "pains") v.innerHTML = pains();
+  else if (TAB === "reqs") v.innerHTML = reqs();
+  else if (TAB === "comp") v.innerHTML = comp();
+  else v.innerHTML = `<div class="card" id="prd">${md(DATA.prd_markdown)}</div>`;
+}
+
+/* ---------------- overview ---------------- */
+function overview(){
+  const c = DATA.compliance, pc = DATA.priority_check || {};
+  const musts = DATA.requirements.filter(r => r.moscow === "Must").sort((a,b) => b.score - a.score);
+  const scope = musts[0] || DATA.requirements.slice().sort((a,b) => b.score - a.score)[0];
+  const counts = ["Must","Should","Could","Won't"].map(k =>
+    `<span class="badge b-${cls(k)}">${MOS_LABEL[k]} ${DATA.requirements.filter(r => r.moscow === k).length}</span>`
+  ).join(" ");
+  const pcIcon = {aligned:["s-ok","✅ 一致"], conflict:["s-warn","⚠️ 与用户直觉冲突"], unknown:["s-warn","❓ 无法校验"]}[pc.status] || ["s-warn","—"];
+
+  return `
+  <div class="grid2">
+    <div class="card">
+      <div class="k">第一版切口</div>
+      <div class="big">${scope ? esc(scope.statement) : "—"}</div>
+      <div class="chips" style="margin-top:10px">${counts}</div>
+    </div>
+    <div class="card">
+      <div class="k">合规判断</div>
+      <div class="big">${esc(c.level)}风险</div>
+      <div class="v" style="margin-top:6px;color:#4b5664">${esc(c.gate)}</div>
+    </div>
+    <div class="card">
+      <div class="k">一致性校验（用户自述 vs 模型排序）</div>
+      <div class="status ${pcIcon[0]}">${pcIcon[1]}</div>
+      <div class="v" style="margin-top:8px">${esc(pc.note || "—")}</div>
+      ${pc.stated ? `<div class="quote" style="margin-top:10px"><em>第 ${pc.stated.turn} 轮</em>${esc(pc.stated.text)}</div>` : ""}
+    </div>
+    <div class="card">
+      <div class="k">技术判断</div>
+      <div class="v">${esc(DATA.feasibility.summary)}</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="k">需求速览（按得分）</div>
+    <table>
+      <tr><th>ID</th><th>优先级</th><th>得分</th><th>场景</th><th>需求</th></tr>
+      ${DATA.requirements.slice().sort((a,b) => b.score - a.score).map(r => `
+        <tr>
+          <td style="font-family:monospace;color:#6b7684">${r.id}</td>
+          <td><span class="badge b-${cls(r.moscow)}">${MOS_LABEL[r.moscow]}</span></td>
+          <td style="font-variant-numeric:tabular-nums">${r.score}</td>
+          <td>${esc(r.scene)}</td>
+          <td>${esc(r.statement)}</td>
+        </tr>`).join("")}
+    </table>
+  </div>`;
+}
+
+/* ---------------- pains ---------------- */
+function pains(){
+  return DATA.pain_points.map(p => `
+    <div class="card">
+      <div class="req-top">
+        <span class="id">${p.id}</span>
+        <span class="badge" style="background:#eef4fd;color:#1a6fe0">${esc(p.scene)}</span>
+        <span class="chip">${CAT[p.category] || p.category}</span>
+        <span class="chip">频次 <b>${esc(p.frequency)}</b></span>
+        <span class="chip">严重度 <b>${p.severity}/5</b></span>
+        <span class="score">证据 ${p.evidence_count} 条</span>
+      </div>
+      <div class="stmt">${esc(p.phenomenon)}</div>
+      <div class="v" style="color:#4b5664">${esc(p.impact)}</div>
+      <details open>
+        <summary>原话证据（可回放）</summary>
+        ${p.evidence.map(e => `<div class="quote"><em>第 ${e.turn} 轮 · ${esc(e.speaker)}</em>${esc(e.quote)}</div>`).join("")}
+      </details>
+    </div>`).join("");
+}
+
+/* ---------------- requirements ---------------- */
+function reqs(){
+  const order = ["Must","Should","Could","Won't"];
+  const sorted = DATA.requirements.slice().sort((a,b) =>
+    order.indexOf(a.moscow) - order.indexOf(b.moscow) || b.score - a.score);
+  return sorted.map(r => `
+    <div class="req">
+      <div class="req-top">
+        <span class="id">${r.id}</span>
+        <span class="badge b-${cls(r.moscow)}">${MOS_LABEL[r.moscow]}</span>
+        <span class="chip">${esc(r.scene)}</span>
+        <span class="chip">${CAT[r.category] || r.category}</span>
+        ${r.compliance_flags.length ? `<span class="status s-bad">⚑ ${r.compliance_flags.map(f => FLAG[f] || f).join(" / ")}</span>` : ""}
+        <span class="score">${r.score} 分<span class="bar"><i style="width:${Math.min(100, r.score)}%"></i></span></span>
+      </div>
+      <div class="stmt">${esc(r.statement)}</div>
+      ${r.evidence.slice(0,3).map(e => `<div class="quote"><em>第 ${e.turn} 轮 · ${esc(e.speaker)}</em>${esc(e.quote)}</div>`).join("")}
+      <details>
+        <summary>为什么是这个优先级（可复算）</summary>
+        <ul class="rat">${r.rationale.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      </details>
+      <details>
+        <summary>验收标准 & AI 方案</summary>
+        <ul class="accept">${r.acceptance.map(a => `<li>${esc(a)}</li>`).join("")}</ul>
+        <div class="v" style="margin-top:8px;color:#4b5664">方案：${esc(r.ai_pattern)}</div>
+      </details>
+    </div>`).join("");
+}
+
+/* ---------------- compliance ---------------- */
+function comp(){
+  const c = DATA.compliance;
+  const badge = {pass:['s-ok','✅ 已覆盖'], fail:['s-bad','❌ 有风险'], unknown:['s-warn','⚠️ 待确认']};
+  const cls = c.level === "高" ? "high" : c.level === "中" ? "mid" : "low";
+  return `
+  <div class="banner ${cls}">
+    <b>${esc(c.level)}风险</b> —— ${esc(c.gate)}
+    <div style="margin-top:6px;color:#4b5664">触发信号：${c.flag_names.length ? c.flag_names.map(esc).join("、") : "未触发"}</div>
+  </div>
+  <div class="card">
+    <div class="k">合规检查清单</div>
+    <table>
+      <tr><th>检查项</th><th>状态</th><th>说明</th><th>需要的动作</th></tr>
+      ${c.findings.map(f => `
+        <tr>
+          <td><b>${esc(f.title)}</b><div style="color:#8b98a5;font-size:11.5px">${esc(f.id)}</div></td>
+          <td><span class="status ${badge[f.status][0]}">${badge[f.status][1]}</span></td>
+          <td>${esc(f.detail)}<div style="color:#8b98a5;font-size:11.5px;margin-top:4px">依据：${esc(f.basis)}</div></td>
+          <td>${esc(f.action)}</td>
+        </tr>`).join("")}
+    </table>
+  </div>
+  <div class="card">
+    <div class="k">红线（不可越界）</div>
+    ${c.red_lines.map(r => `
+      <div style="margin:10px 0">
+        <b>${esc(r.id)} ${esc(r.title)}</b>
+        <div class="v" style="color:#4b5664">${esc(r.detail)}</div>
+        <div style="color:#8b98a5;font-size:11.5px;margin-top:3px">依据：${esc(r.basis)}</div>
+      </div>`).join("")}
+  </div>
+  <div class="card">
+    <div class="k">需要业务方回答的问题</div>
+    <ul style="margin:0;padding-left:20px">
+      ${c.blocking_questions.map(q => `<li>${esc(q)}</li>`).join("")}
+    </ul>
+    <div style="color:#8b98a5;font-size:11.5px;margin-top:12px">${esc(c.disclaimer)}</div>
+  </div>`;
+}
+
+/* ---------------- 极简 markdown ---------------- */
+function inline(s){
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+function md(src){
+  const lines = String(src || "").split("\n");
+  const out = [];
+  let i = 0;
+  while (i < lines.length){
+    const ln = lines[i];
+    if (/^\s*$/.test(ln)) { i++; continue; }
+    if (/^\|/.test(ln)){
+      const rows = [];
+      while (i < lines.length && /^\|/.test(lines[i])) rows.push(lines[i++]);
+      const cells = r => r.split("|").slice(1, -1).map(c => c.trim());
+      const body = rows.filter(r => !/^\|[\s\-:|]+\|$/.test(r));
+      if (!body.length) continue;
+      const head = cells(body[0]);
+      out.push("<table><tr>" + head.map(h => `<th>${inline(h)}</th>`).join("") + "</tr>"
+        + body.slice(1).map(r => "<tr>" + cells(r).map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("")
+        + "</table>");
+      continue;
+    }
+    const h = ln.match(/^(#{1,4})\s+(.*)$/);
+    if (h){ out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
+    if (/^>\s?/.test(ln)){
+      const buf = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
+      out.push(`<blockquote>${buf.map(x => inline(x) || "&nbsp;").join("<br>")}</blockquote>`);
+      continue;
+    }
+    if (/^-\s+\[[ x]\]\s+/.test(ln) || /^-\s+/.test(ln)){
+      const buf = [];
+      while (i < lines.length && /^-\s+/.test(lines[i])) buf.push(lines[i++].replace(/^-\s+(\[[ x]\]\s+)?/, ""));
+      out.push("<ul>" + buf.map(x => `<li>${inline(x)}</li>`).join("") + "</ul>");
+      continue;
+    }
+    out.push(`<p>${inline(ln)}</p>`);
+    i++;
+  }
+  return out.join("");
+}
+
+boot();
+</script>
+</body>
+</html>

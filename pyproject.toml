@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clinsight"
+version = "0.1.0"
+description = "临床需求洞察 Agent：把医生访谈里的隐性痛点，变成可验证、可排序、可交付的需求条目"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "ClinSight" }]
+keywords = ["ai-product", "clinical", "requirements", "moscow", "rag", "healthcare"]
+dependencies = []
+
+[project.optional-dependencies]
+llm = []
+dev = []
+
+[project.scripts]
+clinsight = "clinsight.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,13 @@
+{
+  "interview_id": "INT-004",
+  "split": "test",
+  "themes": [
+    { "name": "危重病人分诊", "match_any": ["分诊", "危重"], "priority": "Must" },
+    { "name": "抢救记录补录", "match_any": ["抢救"], "priority": "Should" },
+    { "name": "家属病情告知", "match_any": ["家属"], "priority": "Should" },
+    { "name": "留观病情监测", "match_any": ["留观"], "priority": "Could" },
+    { "name": "急诊交接", "match_any": ["交接"], "priority": "Should" },
+    { "name": "既往记录查询", "match_any": ["上次", "既往"], "priority": "Should" }
+  ],
+  "expected_flags": []
+}

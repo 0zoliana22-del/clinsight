@@ -1,0 +1,12 @@
+{
+  "interview_id": "INT-006",
+  "split": "test",
+  "themes": [
+    { "name": "手术排期冲突", "match_any": ["排期", "撞车"], "priority": "Must" },
+    { "name": "耗材备货", "match_any": ["耗材", "库存"], "priority": "Should" },
+    { "name": "术后随访康复", "match_any": ["随访", "康复"], "priority": "Should" },
+    { "name": "手术记录生成", "match_any": ["手术记录"], "priority": "Should" },
+    { "name": "下级病历质控", "match_any": ["不合格"], "priority": "Could" }
+  ],
+  "expected_flags": []
+}

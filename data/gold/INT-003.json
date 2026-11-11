@@ -1,0 +1,10 @@
+{
+  "interview_id": "INT-003",
+  "split": "dev",
+  "themes": [
+    { "name": "质控自助取数", "match_any": ["质控"], "priority": "Must" },
+    { "name": "科研数据自助导出", "match_any": ["回顾性", "科研"], "priority": "Should" },
+    { "name": "随访失访管理", "match_any": ["失访"], "priority": "Should" }
+  ],
+  "expected_flags": ["decision_support", "export"]
+}

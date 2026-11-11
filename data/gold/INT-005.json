@@ -1,0 +1,12 @@
+{
+  "interview_id": "INT-005",
+  "split": "test",
+  "themes": [
+    { "name": "按体重算剂量", "match_any": ["剂量"], "priority": "Must" },
+    { "name": "儿科病历模板", "match_any": ["病历"], "priority": "Should" },
+    { "name": "家长沟通", "match_any": ["家长"], "priority": "Should" },
+    { "name": "危急值漏看", "match_any": ["危急值", "化验"], "priority": "Must" },
+    { "name": "夜间巡视", "match_any": ["夜班", "巡视"], "priority": "Could" }
+  ],
+  "expected_flags": []
+}
